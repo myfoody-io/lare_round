@@ -3,7 +3,7 @@
 require 'bigdecimal'
 
 module LareRound
-  def self.round(values, precision)
+  def self.round(values, precision, total = nil)
     # although it is the senders responsibility to ensure that correct messages
     # are sent to this module it might not be quite obvious so i provide some
     # help here with errors if input is invalid
@@ -11,7 +11,7 @@ module LareRound
     handle_value_errors(array_of_values)
     handle_precision_errors(precision)
 
-    process(values, precision)
+    process(values, precision, total)
   end
 
   # StandardError for dealing with application level errors
@@ -20,16 +20,16 @@ module LareRound
   class << self
     private
 
-    def process(values, precision)
+    def process(values, precision, total)
       if values.is_a? Hash
-        process_hash(values, precision)
+        process_hash(values, precision, total)
       else
-        round_array_of_values(values, precision)
+        round_array_of_values(values, precision, total)
       end
     end
 
-    def process_hash(values, precision)
-      rounded_values = round_array_of_values(values.values, precision)
+    def process_hash(values, precision, total)
+      rounded_values = round_array_of_values(values.values, precision, total)
       values.tap do |hash|
         hash.keys.each_with_index do |key, index|
           hash[key] = rounded_values[index]
@@ -82,12 +82,12 @@ module LareRound
       :rounded_values
     )
 
-    def round_array_of_values(array_of_values, precision)
+    def round_array_of_values(array_of_values, precision, total)
       mrc = Struct::IntermediaryResults.new
       mrc.precision = precision
       mrc.decimal_shift = BigDecimal(10**precision.to_i)
-      mrc.rounded_total = array_of_values.reduce(:+)
-                                         .round(precision) * mrc.decimal_shift
+      mrc.rounded_total = (total || array_of_values.reduce(:+))
+                            .round(precision) * mrc.decimal_shift
       mrc.array_of_values = array_of_values.map do |v|
         ((v.is_a? BigDecimal) ? v : BigDecimal(v.to_s))
       end
